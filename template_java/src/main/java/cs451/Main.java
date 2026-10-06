@@ -14,6 +14,7 @@ public class Main {
     private static final int DEFAULT_TIMEOUT_MS = 100;
 
     private static volatile PerfectLink pl;
+    private static volatile OutputLog log;
 
     private static void handleSignal() {
         //immediately stop network packet processing
@@ -24,6 +25,9 @@ public class Main {
 
         //write/flush output file if necessary
         System.out.println("Writing output.");
+        if (log != null) {
+            log.close();
+        }
     }
 
     private static void initSignalHandlers() { // triggered during SIGINT or SIGTERM
@@ -77,8 +81,8 @@ public class Main {
                     envOrDefault("WINDOW", DEFAULT_WINDOW),
                     envOrDefault("TIMEOUT_MS", DEFAULT_TIMEOUT_MS));
             System.out.println("Link config: " + linkConfig + "\n");
-            // TODO (logging PR): replace the no-op with the delivery log
-            pl = new PerfectLink(parser.myId(), parser.hosts(), linkConfig, (src, seq, payload) -> { });
+            log = new OutputLog(parser.output());
+            pl = new PerfectLink(parser.myId(), parser.hosts(), linkConfig, (src, seq, payload) -> log.delivered(src, seq));
         } catch (IOException | RuntimeException e) {
             System.err.println("Initialization failed: " + e);
             System.exit(1);
@@ -91,6 +95,7 @@ public class Main {
             int seq = 0;
             while (seq < m) {
                 seq++;
+                log.sent(seq);
                 pl.send(receiverId, seq, seq);
             }
         }
