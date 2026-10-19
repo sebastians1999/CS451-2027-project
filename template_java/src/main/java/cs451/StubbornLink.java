@@ -11,6 +11,7 @@ final class StubbornLink implements PacketHandler {
     private final ConcurrentHashMap<Integer, Message>[] pending;
     private final Semaphore[] window;                //array otherwise a dead process (receiver) could take up all the slots, Semaphore for threadsafety
     private final Transport transport;
+    private final RttSampleLog rtt;
     private final Thread retransmitter;
     private volatile boolean running = true;
 
@@ -28,6 +29,7 @@ final class StubbornLink implements PacketHandler {
         }
 
         this.transport = new UdpTransport(myId, hosts, this);
+        this.rtt = RttSampleLog.open(myId, config.window, config.timeoutMs);
 
         this.retransmitter = new Thread(this::retransmitLoop, "retransmit");
         retransmitter.start();
@@ -39,6 +41,9 @@ final class StubbornLink implements PacketHandler {
         window[dest].acquire();
         // Must be in pending before it hits the wire, or an early ACK finds nothing to remove.
         pending[dest].put(seq, new Message(seq, payload));
+        if (rtt != null) {
+            rtt.onFirstSend(dest, seq, System.nanoTime());
+        }
         transport.sendData(dest, seq, payload);
     }
 
@@ -50,6 +55,9 @@ final class StubbornLink implements PacketHandler {
 
     @Override
     public void onAck(int src, int seq) {
+        if (rtt != null) {
+            rtt.onAck(src, seq, System.nanoTime());
+        }
         if (pending[src].remove(seq) != null) { // removes it AND checks it was there, if already have been removed it will return null
             window[src].release();
         }
@@ -64,6 +72,9 @@ final class StubbornLink implements PacketHandler {
             }
             for (int dest = 1; dest < pending.length; dest++) {
                 for (Message m : pending[dest].values()) {
+                    if (rtt != null) {
+                        rtt.onRetransmit(dest, m.seq);
+                    }
                     transport.sendData(dest, m.seq, m.payload);
                 }
             }
@@ -74,5 +85,8 @@ final class StubbornLink implements PacketHandler {
         running = false;
         transport.close();
         retransmitter.interrupt();
+        if (rtt != null) {
+            rtt.close();
+        }
     }
 }
