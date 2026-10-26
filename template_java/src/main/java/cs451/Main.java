@@ -1,5 +1,7 @@
 package cs451;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -7,17 +9,30 @@ import java.net.Socket;
 
 public class Main {
 
+    // Submitted defaults; env vars WINDOW / TIMEOUT_MS override them for local tuning only.
+    private static final int DEFAULT_WINDOW = 1024;
+    private static final int DEFAULT_TIMEOUT_MS = 100;
+
+    private static volatile PerfectLink pl;
+    private static volatile OutputLog log;
+
     private static void handleSignal() {
         //immediately stop network packet processing
         System.out.println("Immediately stopping network packet processing.");
+        if (pl != null) {
+            pl.stop();
+        }
 
         //write/flush output file if necessary
         System.out.println("Writing output.");
+        if (log != null) {
+            log.close();
+        }
     }
 
-    private static void initSignalHandlers() {
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
+    private static void initSignalHandlers() { // triggered during SIGINT or SIGTERM
+        Runtime.getRuntime().addShutdownHook(new Thread() {  // tells the JVM to run the given thread during an orderly shutdown 
+            @Override //overwrites the run mehtod
             public void run() {
                 handleSignal();
             }
@@ -28,7 +43,7 @@ public class Main {
         Parser parser = new Parser(args);
         parser.parse();
 
-        initSignalHandlers();
+        initSignalHandlers(); //registers shutdown hook
 
         // example
         long pid = ProcessHandle.current().pid();
@@ -56,13 +71,53 @@ public class Main {
 
         System.out.println("Doing some initialization\n");
 
+        int m;
+        int receiverId;
+        try {
+            int[] config = readPerfectLinksConfig(parser.config());
+            m = config[0];
+            receiverId = config[1];
+            LinkConfig linkConfig = new LinkConfig(
+                    envOrDefault("WINDOW", DEFAULT_WINDOW),
+                    envOrDefault("TIMEOUT_MS", DEFAULT_TIMEOUT_MS));
+            System.out.println("Link config: " + linkConfig + "\n");
+            log = new OutputLog(parser.output());
+            pl = new PerfectLink(parser.myId(), parser.hosts(), linkConfig, (src, seq, payload) -> log.delivered(src, seq));
+        } catch (IOException | RuntimeException e) {
+            System.err.println("Initialization failed: " + e);
+            System.exit(1);
+            return;
+        }
+
         System.out.println("Broadcasting and delivering messages...\n");
+
+        if (parser.myId() != receiverId) {
+            int seq = 0;
+            while (seq < m) {
+                seq++;
+                log.sent(seq);
+                pl.send(receiverId, seq, seq);
+            }
+        }
 
         // After a process finishes broadcasting,
         // it waits forever for the delivery of messages.
         while (true) {
             // Sleep for 1 hour
             Thread.sleep(60 * 60 * 1000);
+        }
+    }
+
+    private static int envOrDefault(String name, int defaultValue) {
+        String value = System.getenv(name);
+        return value == null ? defaultValue : Integer.parseInt(value.trim());
+    }
+
+    // Remember: config line: "m i" = messages per sender, receiver id
+    private static int[] readPerfectLinksConfig(String path) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
+            String[] parts = reader.readLine().trim().split(" ");
+            return new int[] { Integer.parseInt(parts[0]), Integer.parseInt(parts[1]) };
         }
     }
 }

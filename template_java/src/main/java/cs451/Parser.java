@@ -16,7 +16,7 @@ public class Parser {
     }
 
     public void parse() {
-        pid = ProcessHandle.current().pid();
+        pid = ProcessHandle.current().pid(); //stores the OS process id of the running Java process and stores it in the pid field
 
         idParser = new IdParser();
         hostsParser = new HostsParser();
