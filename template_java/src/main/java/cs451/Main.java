@@ -98,6 +98,8 @@ public class Main {
                 log.sent(seq);
                 pl.send(receiverId, seq, seq);
             }
+            // A full batch is sent inside send. This sends a shorter tail immediately.
+            pl.flush(receiverId);
         }
 
         // After a process finishes broadcasting,
