@@ -140,7 +140,7 @@ def iter_timeouts(
     floor_ms: int,
     duration_s: float,
 ):
-    est = 2.0 * senders * window * p99_us / 1000.0
+    est = 1.2 * senders * window * p99_us / 1000.0
     # A timeout longer than the run cannot cause retransmits, so cap at duration.
     cap = duration_s * 1000.0
     seen = set()
@@ -1116,8 +1116,8 @@ def parse_args(argv=None):
     parser.add_argument(
         "--timeout-mults",
         type=_float_list_positive,
-        default=[0.25, 0.5, 1.0, 2.0, 4.0],
-        help="Multipliers of the timeout estimate (default: 0.25,0.5,1,2,4).",
+        default=[0.8, 0.9, 1.0, 1.1, 1.2],
+        help="Multipliers of the timeout estimate (default: 0.8,0.9,1,1.1,1.2).",
     )
     parser.add_argument(
         "--timeouts",
