@@ -2,3 +2,4 @@
 .cursor/
 example/output/stress-perfect/
 *.zip
+!submissions/**/*.zip
