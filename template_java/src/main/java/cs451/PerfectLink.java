@@ -28,6 +28,10 @@ final class PerfectLink implements Deliverer {
         sl.send(dest, seq, payload);
     }
 
+    void flush(int dest) {
+        sl.flush(dest);
+    }
+
     @Override
     public void deliver(int src, int seq, int payload) {
         if (alreadyDelivered(src, seq)) {

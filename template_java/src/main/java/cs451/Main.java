@@ -6,12 +6,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.util.function.IntSupplier;
 
 public class Main {
 
     // Submitted defaults; env vars WINDOW / TIMEOUT_MS override them for local tuning only.
-    private static final int DEFAULT_WINDOW = 1024;
-    private static final int DEFAULT_TIMEOUT_MS = 100;
+    private static final int DEFAULT_WINDOW = 16;
 
     private static volatile PerfectLink pl;
     private static volatile OutputLog log;
@@ -79,7 +79,11 @@ public class Main {
             receiverId = config[1];
             LinkConfig linkConfig = new LinkConfig(
                     envOrDefault("WINDOW", DEFAULT_WINDOW),
-                    envOrDefault("TIMEOUT_MS", DEFAULT_TIMEOUT_MS));
+                    envOrDefault("TIMEOUT_MS", () -> {
+                        // One host is the receiver; every other host sends.
+                        int senders = parser.hosts().size() - 1;
+                        return Math.max(4, (int) Math.round(1.2 * senders * 16 * 0.136));
+                    }));
             System.out.println("Link config: " + linkConfig + "\n");
             log = new OutputLog(parser.output());
             pl = new PerfectLink(parser.myId(), parser.hosts(), linkConfig, (src, seq, payload) -> log.delivered(src, seq));
@@ -98,6 +102,8 @@ public class Main {
                 log.sent(seq);
                 pl.send(receiverId, seq, seq);
             }
+            // A full batch is sent inside send. This sends a shorter tail immediately.
+            pl.flush(receiverId);
         }
 
         // After a process finishes broadcasting,
@@ -111,6 +117,11 @@ public class Main {
     private static int envOrDefault(String name, int defaultValue) {
         String value = System.getenv(name);
         return value == null ? defaultValue : Integer.parseInt(value.trim());
+    }
+
+    private static int envOrDefault(String name, IntSupplier defaultValue) {
+        String value = System.getenv(name);
+        return value == null ? defaultValue.getAsInt() : Integer.parseInt(value.trim());
     }
 
     // Remember: config line: "m i" = messages per sender, receiver id

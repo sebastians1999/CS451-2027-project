@@ -1,9 +1,13 @@
 package cs451;
 
-interface Transport {
-    void sendData(int dest, int seq, int payload);
+import java.util.List;
 
-    void sendAck(int dest, int seq);
+interface Transport {
+    int MAX_BATCH = 8;
+
+    void sendData(int dest, List<Message> batch);
+
+    void sendAck(int dest, int[] seqs);
 
     void start();
 
