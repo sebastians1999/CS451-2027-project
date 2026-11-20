@@ -30,7 +30,7 @@ public final class BestEffortBroadcast implements Deliverer {
     }
 
     @Override
-    public void deliver(int src, int seq, int payload) {
-        upper.deliver(src, seq, payload);
+    public boolean deliver(int src, int seq, int payload) {
+        return upper.deliver(src, seq, payload);
     }
 }

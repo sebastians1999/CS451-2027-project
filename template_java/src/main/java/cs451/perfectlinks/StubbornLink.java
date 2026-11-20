@@ -68,10 +68,21 @@ final class StubbornLink implements PacketHandler {
     @Override
     public void onData(int src, List<Message> received) {
         int[] seqs = new int[received.size()];
+        int accepted = 0;
         for (int i = 0; i < received.size(); i++) {
             Message message = received.get(i);
-            upper.deliver(src, message.seq, message.payload);
-            seqs[i] = message.seq;
+            if (upper.deliver(src, message.seq, message.payload)) {
+                seqs[accepted++] = message.seq;
+            }
+        }
+        // No ACK at all when every message was refused: the sender must keep retransmitting.
+        if (accepted == 0) {
+            return;
+        }
+        if (accepted < seqs.length) {
+            int[] exact = new int[accepted];
+            System.arraycopy(seqs, 0, exact, 0, accepted);
+            seqs = exact;
         }
         transport.sendAck(src, seqs);
     }

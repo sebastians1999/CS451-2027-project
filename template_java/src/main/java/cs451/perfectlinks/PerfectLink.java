@@ -36,13 +36,17 @@ public final class PerfectLink implements Deliverer {
     }
 
     @Override
-    public void deliver(int src, int seq, int payload) {
+    public boolean deliver(int src, int seq, int payload) {
         if (alreadyDelivered(src, seq)) {
-            return;
+            return true; // duplicate still has to be acked, or the sender retransmits forever
+        }
+        // Record only after the upper layer accepts. A refusal must look new on retransmit.
+        if (!upper.deliver(src, seq, payload)) {
+            return false;
         }
         outOfOrder.get(src).add(seq); //if one message does not ever get delivered we are stuck emptying the set but we still keep on delivering
         extendRun(src);
-        upper.deliver(src, seq, payload);
+        return true;
     }
 
     private boolean alreadyDelivered(int src, int seq) {

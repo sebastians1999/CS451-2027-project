@@ -89,7 +89,10 @@ public class Main {
                     }));
             System.out.println("Link config: " + linkConfig + "\n");
             log = new OutputLog(parser.output());
-            pl = new PerfectLink(parser.myId(), parser.hosts(), linkConfig, (src, seq, payload) -> log.delivered(src, seq));
+            pl = new PerfectLink(parser.myId(), parser.hosts(), linkConfig, (src, seq, payload) -> {
+                log.delivered(src, seq);
+                return true;
+            });
         } catch (IOException | RuntimeException e) {
             System.err.println("Initialization failed: " + e);
             System.exit(1);
