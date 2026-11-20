@@ -6,13 +6,12 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
-import cs451.Deliverer;
 import cs451.Host;
 
 final class StubbornLink implements PacketHandler {
     private final long timeoutMs;
-    private final Deliverer upper;
-    private final ConcurrentHashMap<Integer, Message>[] pending;
+    private final PerfectLink upper;
+    private final ConcurrentHashMap<Integer, Message>[] pending; // keyed by link seq, so a relay cannot collide with our own seq
     private final List<Message>[] batch;             // no lock: only the main thread calls send and flush
     private final Semaphore[] window;                //array otherwise a dead process (receiver) could take up all the slots, Semaphore for threadsafety
     private final Transport transport;
@@ -20,7 +19,7 @@ final class StubbornLink implements PacketHandler {
     private volatile boolean running = true;
 
     @SuppressWarnings("unchecked")
-    StubbornLink(int myId, List<Host> hosts, LinkConfig config, Deliverer upper) throws SocketException {
+    StubbornLink(int myId, List<Host> hosts, LinkConfig config, PerfectLink upper) throws SocketException {
         int numHosts = hosts.size();
         this.timeoutMs = config.timeoutMs;
         this.upper = upper;
@@ -42,14 +41,14 @@ final class StubbornLink implements PacketHandler {
         transport.start();
     }
 
-    void send(int dest, int seq, int payload) throws InterruptedException {
+    void send(int dest, int linkSeq, int origin, int seq, int payload) throws InterruptedException {
         if (!window[dest].tryAcquire()) {
             flush(dest);
             window[dest].acquire();
         }
         // Must be in pending before it hits the wire, or an early ACK finds nothing to remove.
-        Message message = new Message(seq, payload);
-        pending[dest].put(seq, message);
+        Message message = new Message(linkSeq, origin, seq, payload);
+        pending[dest].put(linkSeq, message);
         batch[dest].add(message);
         if (batch[dest].size() == Transport.MAX_BATCH) {
             flush(dest);
@@ -67,30 +66,30 @@ final class StubbornLink implements PacketHandler {
 
     @Override
     public void onData(int src, List<Message> received) {
-        int[] seqs = new int[received.size()];
+        int[] linkSeqs = new int[received.size()];
         int accepted = 0;
         for (int i = 0; i < received.size(); i++) {
             Message message = received.get(i);
-            if (upper.deliver(src, message.seq, message.payload)) {
-                seqs[accepted++] = message.seq;
+            if (upper.deliver(src, message.linkSeq, message.origin, message.seq, message.payload)) {
+                linkSeqs[accepted++] = message.linkSeq;
             }
         }
         // No ACK at all when every message was refused: the sender must keep retransmitting.
         if (accepted == 0) {
             return;
         }
-        if (accepted < seqs.length) {
+        if (accepted < linkSeqs.length) {
             int[] exact = new int[accepted];
-            System.arraycopy(seqs, 0, exact, 0, accepted);
-            seqs = exact;
+            System.arraycopy(linkSeqs, 0, exact, 0, accepted);
+            linkSeqs = exact;
         }
-        transport.sendAck(src, seqs);
+        transport.sendAck(src, linkSeqs);
     }
 
     @Override
-    public void onAck(int src, int[] seqs) {
-        for (int seq : seqs) {
-            if (pending[src].remove(seq) != null) { // removes it AND checks it was there, if already have been removed it will return null
+    public void onAck(int src, int[] linkSeqs) {
+        for (int linkSeq : linkSeqs) {
+            if (pending[src].remove(linkSeq) != null) { // removes it AND checks it was there, if already have been removed it will return null
                 window[src].release();
             }
         }

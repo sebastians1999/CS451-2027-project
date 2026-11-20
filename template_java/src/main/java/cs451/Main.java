@@ -89,8 +89,8 @@ public class Main {
                     }));
             System.out.println("Link config: " + linkConfig + "\n");
             log = new OutputLog(parser.output());
-            pl = new PerfectLink(parser.myId(), parser.hosts(), linkConfig, (src, seq, payload) -> {
-                log.delivered(src, seq);
+            pl = new PerfectLink(parser.myId(), parser.hosts(), linkConfig, (relayer, origin, seq, payload) -> {
+                log.delivered(origin, seq);
                 return true;
             });
         } catch (IOException | RuntimeException e) {

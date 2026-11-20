@@ -7,7 +7,7 @@ interface Transport {
 
     void sendData(int dest, List<Message> batch);
 
-    void sendAck(int dest, int[] seqs);
+    void sendAck(int dest, int[] linkSeqs);
 
     void start();
 
