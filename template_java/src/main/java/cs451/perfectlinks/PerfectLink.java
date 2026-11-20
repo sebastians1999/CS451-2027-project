@@ -1,18 +1,21 @@
-package cs451;
+package cs451.perfectlinks;
 
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
-final class PerfectLink implements Deliverer {
+import cs451.Deliverer;
+import cs451.Host;
+
+public final class PerfectLink implements Deliverer {
     private final Deliverer upper;
     // Only the receive thread touches these, so they need no synchronization.
     private final int[] contiguousUpTo;
     private final List<HashSet<Integer>> outOfOrder;   // indexed by host id; index 0 unused
     private final StubbornLink sl;
 
-    PerfectLink(int myId, List<Host> hosts, LinkConfig config, Deliverer upper) throws SocketException {
+    public PerfectLink(int myId, List<Host> hosts, LinkConfig config, Deliverer upper) throws SocketException {
         int numHosts = hosts.size();
         this.upper = upper;
         this.contiguousUpTo = new int[numHosts + 1];
@@ -24,11 +27,11 @@ final class PerfectLink implements Deliverer {
         this.sl = new StubbornLink(myId, hosts, config, this);
     }
 
-    void send(int dest, int seq, int payload) throws InterruptedException {
+    public void send(int dest, int seq, int payload) throws InterruptedException {
         sl.send(dest, seq, payload);
     }
 
-    void flush(int dest) {
+    public void flush(int dest) {
         sl.flush(dest);
     }
 
@@ -54,7 +57,7 @@ final class PerfectLink implements Deliverer {
         }
     }
 
-    void stop() { //shutdown entrypoint when main receives SIGINT or SIGTERM
+    public void stop() { //shutdown entrypoint when main receives SIGINT or SIGTERM
         sl.stop();
     }
 }

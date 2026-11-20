@@ -1,4 +1,4 @@
-package cs451;
+package cs451.perfectlinks;
 
 final class Message {
     final int seq;

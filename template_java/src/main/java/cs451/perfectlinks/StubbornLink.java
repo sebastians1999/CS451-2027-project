@@ -1,10 +1,13 @@
-package cs451;
+package cs451.perfectlinks;
 
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
+
+import cs451.Deliverer;
+import cs451.Host;
 
 final class StubbornLink implements PacketHandler {
     private final long timeoutMs;

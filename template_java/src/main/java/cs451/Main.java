@@ -8,6 +8,9 @@ import java.io.InputStreamReader;
 import java.net.Socket;
 import java.util.function.IntSupplier;
 
+import cs451.perfectlinks.LinkConfig;
+import cs451.perfectlinks.PerfectLink;
+
 public class Main {
 
     // Submitted defaults; env vars WINDOW / TIMEOUT_MS override them for local tuning only.

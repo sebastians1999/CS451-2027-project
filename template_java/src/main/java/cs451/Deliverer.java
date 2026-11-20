@@ -1,5 +1,5 @@
 package cs451;
 
-interface Deliverer {
+public interface Deliverer {
     void deliver(int src, int seq, int payload);
 }

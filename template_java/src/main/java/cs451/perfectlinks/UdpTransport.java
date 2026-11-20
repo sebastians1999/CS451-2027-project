@@ -1,4 +1,4 @@
-package cs451;
+package cs451.perfectlinks;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -8,6 +8,8 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+
+import cs451.Host;
 
 // Packet layout, big-endian ints:
 //   DATA: [type:1][senderId:1][count:1][(seq:4, payload:4) x count]
