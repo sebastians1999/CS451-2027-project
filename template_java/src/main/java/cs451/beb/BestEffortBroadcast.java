@@ -17,7 +17,6 @@ public final class BestEffortBroadcast implements Deliverer {
             throws SocketException {
         this.hosts = hosts;
         this.upper = upper;
-        // The link starts receiving before its constructor returns and can call deliver.
         this.pl = new PerfectLink(myId, hosts, config, this);
     }
 
